@@ -3,11 +3,9 @@ from typing import List, Optional
 
 
 class SeverityRequest(BaseModel):
-    type: str = Field(..., examples=["medical"])
-    description: Optional[str] = None
-    hour: int = Field(12, ge=0, le=23)
-    lat: float
-    lng: float
+    incident_type: Optional[str] = None
+    type: Optional[str] = None
+    hour: Optional[int] = 12
 
 
 class SeverityResponse(BaseModel):
@@ -19,17 +17,26 @@ class ResponderCandidate(BaseModel):
     user_id: str
     lat: float
     lng: float
-    skills: List[str] = []
-    avg_response_time: float = 0
-    acceptance_rate: float = 0
-    distance_km: Optional[float] = None
+    skills: Optional[List[str]] = []
+    equipment: Optional[List[str]] = None
+    avg_response_time: float = 0.0
+    acceptance_rate: float = 0.0
+    avg_response_min: Optional[float] = None
+
+    def model_post_init(self, __context):
+        if self.avg_response_min is not None and self.avg_response_time == 0.0:
+            self.avg_response_time = self.avg_response_min
+        if self.equipment is not None and not self.skills:
+            self.skills = self.equipment
 
 
 class RankRequest(BaseModel):
-    incident_type: str
+    severity: Optional[str] = None
+    incident_type: Optional[str] = None
     incident_lat: float
     incident_lng: float
-    responders: List[ResponderCandidate]
+    candidates: Optional[List[ResponderCandidate]] = None
+    responders: Optional[List[ResponderCandidate]] = None
 
 
 class RankedResponder(BaseModel):

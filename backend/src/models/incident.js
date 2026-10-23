@@ -10,14 +10,21 @@ const Incident = sequelize.define('Incident', {
     citizen_id: {
         type: DataTypes.UUID,
         allowNull: false,
+        field: 'user_id',
     },
     type: {
         type: DataTypes.STRING,
         allowNull: false,
+        field: 'incident_type',
     },
     description: {
         type: DataTypes.TEXT,
         allowNull: true,
+    },
+    patient: {
+        type: DataTypes.ENUM('self', 'other'),
+        defaultValue: 'self',
+        allowNull: false,
     },
     severity: {
         type: DataTypes.ENUM('pending', 'low', 'medium', 'high', 'critical'),

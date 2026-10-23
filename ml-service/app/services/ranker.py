@@ -17,17 +17,15 @@ def haversine(lat1, lng1, lat2, lng2):
     return EARTH_R * 2 * atan2(sqrt(a), sqrt(1 - a))
 
 
-def _skill_match(incident_type, skills):
-    if not skills:
-        return 0.0
-    it = (incident_type or "").lower()
-    for s in skills:
-        if s.lower() in it or it in s.lower():
-            return 1.0
-    return 0.3
+def _skill_match(severity, equipment_tags):
+    tags = set((t or "").upper() for t in (equipment_tags or []))
+    if (severity or "").lower() in ("critical", "high"):
+        return 1.0 if "ALS" in tags else 0.3
+    else:  # medium, low
+        return 1.0 if tags & {"ALS", "BLS"} else 0.3
 
 
-def rank_responders(incident_type, incident_lat, incident_lng, responders):
+def rank_responders(severity, incident_lat, incident_lng, responders):
     if not responders:
         return []
 
@@ -40,7 +38,9 @@ def rank_responders(incident_type, incident_lat, incident_lng, responders):
         rt = float(r.get("avg_response_time") or 0)
         response_score = max(0.0, 1.0 - min(rt, 60.0) / 60.0)
         acceptance_score = float(r.get("acceptance_rate") or 0)
-        skill_score = _skill_match(incident_type, r.get("skills") or [])
+        
+        equipment = r.get("equipment") or r.get("skills") or []
+        skill_score = _skill_match(severity, equipment)
 
         score = (
             WEIGHTS["distance"] * distance_score

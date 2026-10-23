@@ -1,46 +1,37 @@
-SEVERITY_MAP = {
-    "cardiac": "critical",
-    "fire": "critical",
-    "accident": "high",
-    "medical": "high",
-    "bleeding": "high",
-    "assault": "high",
-    "police": "medium",
-    "theft": "medium",
-    "flood": "high",
-    "stuck": "low",
-    "other": "medium",
+"""
+Severity Classifier Module for SERN ML Service
+Binary urgency toggle (critical_emergency vs stable_urgent) with time-of-day elevation.
+"""
+
+BASELINE_MAPPING = {
+    "critical_emergency": ("critical", 0.90),
+    "stable_urgent": ("medium", 0.75),
 }
 
-KEYWORDS = {
-    "critical": ["unconscious", "breathing", "cardiac", "heart", "not breathing", "severe"],
-    "high": ["bleeding", "broken", "burn", "accident", "fire", "stab", "severe pain"],
-    "low": ["minor", "small", "slight", "scratch"],
-}
+SEVERITY_LEVELS = ["low", "medium", "high", "critical"]
 
+def _elevate_severity(level: str) -> str:
+    try:
+        idx = SEVERITY_LEVELS.index(level.lower())
+        if idx < len(SEVERITY_LEVELS) - 1:
+            return SEVERITY_LEVELS[idx + 1]
+        return level
+    except ValueError:
+        return level
 
-def predict_severity(incident_type: str, description: str, hour: int) -> dict:
-    incident_type = (incident_type or "other").lower()
-    description = (description or "").lower()
+def predict_severity(incident_type: str, hour: int = 12) -> tuple[str, float]:
+    """
+    Predict medical emergency severity and confidence score.
+    Returns (severity_string, confidence_float).
+    """
+    it_clean = (incident_type or "").lower().strip()
+    
+    # 1. Baseline mapping from binary urgency toggle
+    severity, confidence = BASELINE_MAPPING.get(it_clean, ("medium", 0.75))
 
-    base = SEVERITY_MAP.get(incident_type, "medium")
+    # 2. Time-of-day elevation (22:00 to 05:00)
+    is_night = (hour >= 22) or (hour < 5)
+    if is_night and severity != "critical":
+        severity = _elevate_severity(severity)
 
-    # Keyword override
-    for level, words in KEYWORDS.items():
-        if any(w in description for w in words):
-            if level == "critical":
-                return {"severity": "critical", "confidence": 0.9}
-            if level == "high" and base in ("low", "medium"):
-                base = "high"
-            if level == "low" and base == "critical":
-                base = "high"
-
-    # Night-time bump (22:00 - 05:00)
-    if hour >= 22 or hour <= 5:
-        if base == "low":
-            base = "medium"
-        elif base == "medium":
-            base = "high"
-
-    confidence = 0.75 if base != "medium" else 0.6
-    return {"severity": base, "confidence": confidence}
+    return severity, confidence
